@@ -1,3 +1,9 @@
+/*
+ * 
+ * Functionality temporarily borrowed from com.gemini.logprocessing.cassandra
+ * 
+ */
+
 package com.hobsons.flume.plugin;
 
 import static me.prettyprint.hector.api.factory.HFactory.createKeyspace;

@@ -11,6 +11,7 @@ import static me.prettyprint.hector.api.factory.HFactory.createMutator;
 import static me.prettyprint.hector.api.factory.HFactory.getOrCreateCluster;
 
 import java.io.IOException;
+import java.sql.Date;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -41,10 +42,10 @@ import me.prettyprint.hector.api.mutation.Mutator;
 
 public class CassandraCqlSink extends EventSink.Base{
 	  
-    private static final String KS_CDRLOG = "CDRLogs";
+    private static final String KS_CDRLOG = "F5_Syslog";
     private static final String CLUSTER_NAME = "Test Cluster";
-    private static final String CF_ENTRY = "CDREntry";
-    private static final String CF_MSISDN = "MSISDNTimeline";
+    private static final String CF_ENTRY = "Data";
+//    private static final String CF_MSISDN = "MSISDNTimeline";
     private static final String CF_HOURLY = "HourlyTimeline";
     private static final StringSerializer stringSerializer = StringSerializer.get();
     private static final BytesArraySerializer bytesSerializer = BytesArraySerializer.get();
@@ -52,15 +53,16 @@ public class CassandraCqlSink extends EventSink.Base{
 
     private Cluster cluster;
     private Keyspace keyspace;
-    private Mutator<byte[]> mutator;
+    private Mutator<String> mutator;
+    //    private Mutator<byte[]> mutator;
     private String m_CFRawCdr;
 
     private static final UUIDGenerator uuidGen = UUIDGenerator.getInstance();
 
-    private static final String entryColumnFamily = "CDREntry";
-    private static final String msisdnColumnFamily = "MSISDNTimeLine";
-    private static final String hourlyColumnFamily = "HourlyTimeLine";
-    private static final String rawColumnFamily = "RawCDREntry";
+//    private static final String entryColumnFamily = "CDREntry";
+//    private static final String msisdnColumnFamily = "MSISDNTimeLine";
+//    private static final String hourlyColumnFamily = "HourlyTimeLine";
+//    private static final String rawColumnFamily = "RawCDREntry";
 
     private static final long MILLI_TO_MICRO = 1000; // 1ms = 1000us
 
@@ -79,7 +81,7 @@ public class CassandraCqlSink extends EventSink.Base{
     
 	cluster = getOrCreateCluster(CLUSTER_NAME, server);
 	keyspace = createKeyspace(KS_CDRLOG, cluster);
-	mutator = createMutator(keyspace, bytesSerializer);
+	mutator = createMutator(keyspace, stringSerializer);
 
 	//Add cdRawData.
 
@@ -115,7 +117,7 @@ public class CassandraCqlSink extends EventSink.Base{
 
 	if (event.getBody().length > 0) {
 	    try {
-		long timestamp = System.currentTimeMillis() * MILLI_TO_MICRO;
+//		long timestamp = System.currentTimeMillis() * MILLI_TO_MICRO;
 
 		// Make the index column
 		UUID uuid = uuidGen.generateTimeBasedUUID();
@@ -127,29 +129,45 @@ public class CassandraCqlSink extends EventSink.Base{
 	    //op,market,tid,mdr_type,msg_ts,imsi,mo_ip,mt_ip,ptn,msg_type,mo_domain,mt_domain
 		String rawEntry = new String(event.getBody());
 
+		
 		String[] rawEntries = rawEntry.split("\\,");
 		for(int i = 0; i < 1/*CDRENTRY_NAME.length*/; i++) {
-		    mutator.addInsertion(uuid.toString().getBytes(),CF_ENTRY,HFactory.createStringColumn(CDRENTRY_NAME[i],rawEntries[CDRENTRY_MAP[i]]));
+		    mutator.addInsertion(uuid.toString(),CF_ENTRY,HFactory.createStringColumn(CDRENTRY_NAME[i],rawEntries[CDRENTRY_MAP[i]]));
 //		    mutator.addInsertion(rowkey, cf, HFactory.createStringColumn(UUID.randomUUID().toString(),UUID.randomUUID().toString()));
 
 		}
 
 		//MSISDNTimeLine & HourlyTimeLine
-		String msisdn = new String(rawEntries[0]); //changed from rawEntries[8]
-		mutator.addInsertion(msisdn.getBytes(),
-			      CF_MSISDN,
-			      createColumn(Long.toString(timestamp).getBytes(),
-					   uuid.toByteArray()));
+//		String msisdn = new String(rawEntries[0]); //changed from rawEntries[8]
+//		mutator.addInsertion(msisdn.getBytes(),
+//			      CF_MSISDN,
+//			      createColumn(Long.toString(timestamp).getBytes(),
+//					   uuid.toByteArray()));
  
-		mutator.addInsertion(Long.toString(timestamp).getBytes(),
+		
+		java.util.Date today = new java.util.Date();
+		
+		mutator.addInsertion(today.toString(),
 			      CF_HOURLY,
-			      createColumn(Long.toString(timestamp).getBytes(),
-					   uuid.toByteArray()));
+			      HFactory.createStringColumn(today.toString(),
+					   uuid.toString()));
+		
+		
+//		mutator.addInsertion(Long.toString(timestamp).getBytes(),
+//			      CF_HOURLY,
+//			      createColumn(Long.toString(timestamp).getBytes(),
+//					   uuid.toByteArray()));
  
-		mutator.addInsertion(uuid.toString().getBytes(),
+		
+		mutator.addInsertion(uuid.toString(),
 			      m_CFRawCdr,
-			      createColumn(uuid.toByteArray(),
-					   event.getBody()));
+			      HFactory.createStringColumn(uuid.toString(),
+					   event.getBody().toString()));
+		
+//		mutator.addInsertion(uuid.toString().getBytes(),
+//			      m_CFRawCdr,
+//			      createColumn(uuid.toByteArray(),
+//					   event.getBody()));
 
 
 		mutator.execute();

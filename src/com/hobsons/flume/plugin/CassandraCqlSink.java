@@ -122,15 +122,14 @@ public class CassandraCqlSink extends EventSink.Base{
 		String rawEntry = new String(event.getBody());
 
 		String[] rawEntries = rawEntry.split("\\,");
-		for(int i = 0; i < CDRENTRY_NAME.length; i++) {
-		    mutator.addInsertion(uuid.toString().getBytes(),
-				  CF_ENTRY,
-				  createColumn(CDRENTRY_NAME[i].getBytes(),
-				    rawEntries[CDRENTRY_MAP[i]].getBytes()));
+		for(int i = 0; i < 1/*CDRENTRY_NAME.length*/; i++) {
+		    mutator.addInsertion(uuid.toString().getBytes(),CF_ENTRY,HFactory.createStringColumn(CDRENTRY_NAME[i],rawEntries[CDRENTRY_MAP[i]]));
+//		    mutator.addInsertion(rowkey, cf, HFactory.createStringColumn(UUID.randomUUID().toString(),UUID.randomUUID().toString()));
+
 		}
 
 		//MSISDNTimeLine & HourlyTimeLine
-		String msisdn = new String(rawEntries[8]);
+		String msisdn = new String(rawEntries[0]); //changed from rawEntries[8]
 		mutator.addInsertion(msisdn.getBytes(),
 			      CF_MSISDN,
 			      createColumn(Long.toString(timestamp).getBytes(),
@@ -163,13 +162,16 @@ public class CassandraCqlSink extends EventSink.Base{
     }
 
     public static SinkBuilder builder() {
+    	
 	return new SinkBuilder() {
 	@Override
 	public EventSink build(Context context, String ... args) {
+		
 	    if (args.length < 2) {
           throw new IllegalArgumentException(
-              "usage: CDRCassandraSink(\"host:port\", \"raw_cdr_column_family\")");
+              "usage: CQLCassandraSink(\"host:port\", \"raw_cdr_column_family\")");
         }
+	    
        return new CassandraCqlSink(args[0], args[1]);
       }
     };  
@@ -180,14 +182,16 @@ public class CassandraCqlSink extends EventSink.Base{
    * as a plugin sink.
    */
     public static List<Pair<String, SinkBuilder>> getSinkBuilders() {
-	List<Pair<String, SinkBuilder>> builders =
-	new ArrayList<Pair<String, SinkBuilder>>();
-	builders.add(new Pair<String, SinkBuilder>("CDRCassandraSink", builder()));
-	return builders;
+    	
+		List<Pair<String, SinkBuilder>> builders =
+		new ArrayList<Pair<String, SinkBuilder>>();
+		builders.add(new Pair<String, SinkBuilder>("cassandraCqlSink", builder()));
+		return builders;
     }
 
     private HColumn<byte[], byte[]> createColumn(byte[] name, byte[] value) {
-	return HFactory.createColumn(name, value, bytesSerializer, bytesSerializer);
+    	
+		return HFactory.createColumn(name, value, bytesSerializer, bytesSerializer);
     }
 
 }

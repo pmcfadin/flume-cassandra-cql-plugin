@@ -3,4 +3,11 @@
   <groupId>flume-cassandra-cql-plugin</groupId>
   <artifactId>flume-cassandra-cql-plugin</artifactId>
   <version>0.0.1-SNAPSHOT</version>
+  	<dependencies>
+		<dependency>
+ 		   <groupId>me.prettyprint</groupId>
+ 		   <artifactId>hector-core</artifactId>
+ 		   <version>0.8.0-2</version>
+		</dependency>
+	</dependencies>
 </project>

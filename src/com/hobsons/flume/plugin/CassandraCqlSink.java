@@ -89,10 +89,9 @@ public class CassandraCqlSink extends EventSink.Base{
     }
 
     /**
-     * Writes the message to Cassandra.
-    * The key is the current date (YYYYMMDD) and the column
-    * name is a type 1 UUID, which includes a time stamp
-    * component.
+     * Writes the syslog data to Cassandra.
+     * Key is a Time-based UUID generated per-minute by the counter above.
+     * Data is written in the minute rows and includes a per-instance Time-based UUID.
     */
     @Override
     public void append(Event event) throws IOException, InterruptedException {
@@ -133,7 +132,7 @@ public class CassandraCqlSink extends EventSink.Base{
 		
 	    if (args.length < 2) {
           throw new IllegalArgumentException(
-              "usage: cassandraCqlSink(\"host:port\", \"raw_cdr_column_family\")");
+              "usage: cassandraCqlSink(\"host:port\", \"raw_data_column_family\")");
         }
 	    
        return new CassandraCqlSink(args[0], args[1]);

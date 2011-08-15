@@ -9,6 +9,8 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Properties;
+import java.util.Timer;
+import java.util.TimerTask;
 
 import org.safehaus.uuid.UUID;
 import org.safehaus.uuid.UUIDGenerator;
@@ -42,15 +44,19 @@ public class CassandraCqlSink extends EventSink.Base{
     private static final String KS_LOG = (String)prop.getProperty("KS_LOG");
     private static final String CLUSTER_NAME = (String)prop.getProperty("CLUSTER_NAME");
     private static final String CF_ENTRY = (String)prop.getProperty("CF_ENTRY");
-    private static final String CF_HOURLY = (String)prop.getProperty("CF_HOURLY");
+//    private static final String CF_HOURLY = (String)prop.getProperty("CF_HOURLY");
     private static final StringSerializer stringSerializer = StringSerializer.get();
-
+    
+    private static final Long startTime = System.nanoTime();
 
     private Cluster cluster;
     private Keyspace keyspace;
     private Mutator<String> mutator;
     private String CFRaw;
-
+    private UUID minute;
+    private Timer timer = new Timer();
+    
+    
     private static final UUIDGenerator uuidGen = UUIDGenerator.getInstance();
 
     public CassandraCqlSink(String server, String cfRawData) {
@@ -91,27 +97,48 @@ public class CassandraCqlSink extends EventSink.Base{
 
 	if (event.getBody().length > 0) {
 	    try {
+	    	
+	    String rawEntry = new String(event.getBody());	 
+	    
+	    long elapsedTime = System.nanoTime() - startTime;
+	    double seconds = (double)elapsedTime / 1000000000.0;
 
+	    
 		// Make the index column
+	    if(minute==null){
+	    	minute = uuidGen.generateTimeBasedUUID();
+	    	
+	    	timer.schedule(new TimerTask() {
+	            public void run() {
+	                minute = uuidGen.generateTimeBasedUUID();
+	            }
+	        } , 60000 , 60000);
+	    }
+
 		UUID uuid = uuidGen.generateTimeBasedUUID();
-
-		String rawEntry = new String(event.getBody());
-
-		mutator.addInsertion(uuid.toString(),CF_ENTRY,HFactory.createStringColumn("RAW:",rawEntry));
-
-		java.util.Date today = new java.util.Date();
+		mutator.addInsertion(minute.toString(),CF_ENTRY,HFactory.createStringColumn(uuid.toString(),rawEntry));
 		
-		mutator.addInsertion(today.toString(),
-			      CF_HOURLY,
-			      HFactory.createStringColumn(today.toString(),
-					   uuid.toString()));
-	
-		mutator.addInsertion(uuid.toString(),
-			      CFRaw,
-			      HFactory.createStringColumn(uuid.toString(),
-					   event.getBody().toString()));
+		
+		System.out.println("One Minute? "+ seconds);
+	    System.out.println(minute.toString());
+//		mutator.addInsertion(uuid.toString(),CF_ENTRY,HFactory.createStringColumn("RAW:",rawEntry));
+		
+//		java.util.Date today = new java.util.Date();
+//		
+//		mutator.addInsertion(today.toString(),
+//			      CF_HOURLY,
+//			      HFactory.createStringColumn("Time UUID:",
+//					   uuid.toString()));
+//	
+//		mutator.addInsertion(uuid.toString(),
+//			      CFRaw,
+//			      HFactory.createStringColumn(uuid.toString(),
+//					   event.getBody().toString()));
 
 		mutator.execute();
+
+	    
+	    
 	    } catch (HInvalidRequestException e) {
 		e.printStackTrace();
 		throw new IOException("Failed to process log entry");
@@ -175,4 +202,5 @@ public class CassandraCqlSink extends EventSink.Base{
 	}
 
 }
+
 

@@ -47,12 +47,11 @@ public class CassandraCqlSink extends EventSink.Base{
 //    private static final String CF_HOURLY = (String)prop.getProperty("CF_HOURLY");
     private static final StringSerializer stringSerializer = StringSerializer.get();
     
-    private static final Long startTime = System.nanoTime();
-
+//    private Long startTime = System.nanoTime();
     private Cluster cluster;
     private Keyspace keyspace;
     private Mutator<String> mutator;
-    private String CFRaw;
+//    private String CFRaw;
     private UUID minute;
     private Timer timer = new Timer();
     
@@ -65,12 +64,22 @@ public class CassandraCqlSink extends EventSink.Base{
 	keyspace = createKeyspace(KS_LOG, cluster);
 	mutator = createMutator(keyspace, stringSerializer);
 
-	CFRaw = cfRawData;
+//	CFRaw = cfRawData;
 	BasicColumnFamilyDefinition cfo = new BasicColumnFamilyDefinition();
 	cfo.setColumnType(ColumnType.STANDARD);
 	cfo.setName(cfRawData);
 	cfo.setComparatorType(ComparatorType.BYTESTYPE);
 	cfo.setKeyspaceName(KS_LOG);
+	
+	
+	//Timer to generate new Time-based UUID for each minute
+//	startTime=System.nanoTime();
+    	timer.schedule(new TimerTask() {
+            public void run() {
+                minute = uuidGen.generateTimeBasedUUID();
+            }
+        } , 60000 , 60000);
+
 
 	try {
 	    cluster.addColumnFamily(new ThriftCfDef((cfo)));
@@ -100,40 +109,21 @@ public class CassandraCqlSink extends EventSink.Base{
 	    	
 	    String rawEntry = new String(event.getBody());	 
 	    
-	    long elapsedTime = System.nanoTime() - startTime;
-	    double seconds = (double)elapsedTime / 1000000000.0;
+//	    long elapsedTime = System.nanoTime() - startTime;
+//	    double seconds = (double)elapsedTime / 1000000000.0;
 
 	    
 		// Make the index column
 	    if(minute==null){
 	    	minute = uuidGen.generateTimeBasedUUID();
-	    	
-	    	timer.schedule(new TimerTask() {
-	            public void run() {
-	                minute = uuidGen.generateTimeBasedUUID();
-	            }
-	        } , 60000 , 60000);
 	    }
 
 		UUID uuid = uuidGen.generateTimeBasedUUID();
 		mutator.addInsertion(minute.toString(),CF_ENTRY,HFactory.createStringColumn(uuid.toString(),rawEntry));
 		
 		
-		System.out.println("One Minute? "+ seconds);
-	    System.out.println(minute.toString());
-//		mutator.addInsertion(uuid.toString(),CF_ENTRY,HFactory.createStringColumn("RAW:",rawEntry));
-		
-//		java.util.Date today = new java.util.Date();
-//		
-//		mutator.addInsertion(today.toString(),
-//			      CF_HOURLY,
-//			      HFactory.createStringColumn("Time UUID:",
-//					   uuid.toString()));
-//	
-//		mutator.addInsertion(uuid.toString(),
-//			      CFRaw,
-//			      HFactory.createStringColumn(uuid.toString(),
-//					   event.getBody().toString()));
+//		System.out.println("One Minute? "+ seconds);
+//	    System.out.println(minute.toString());
 
 		mutator.execute();
 

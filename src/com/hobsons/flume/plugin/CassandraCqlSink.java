@@ -71,7 +71,7 @@ public class CassandraCqlSink extends EventSink.Base{
             public void run() {
                 minute = uuidGen.generateTimeBasedUUID();
             }
-        } , 60000 , 60000);
+        } , 0 , 60000);
 
 
 	try {
@@ -100,10 +100,6 @@ public class CassandraCqlSink extends EventSink.Base{
 	    try {
 	    	
 	    String rawEntry = new String(event.getBody());	 
-	    
-	    if(minute==null){
-	    	minute = uuidGen.generateTimeBasedUUID();
-	    }
 
 		UUID uuid = uuidGen.generateTimeBasedUUID();
 		

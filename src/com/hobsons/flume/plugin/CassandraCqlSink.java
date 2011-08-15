@@ -25,13 +25,11 @@ import com.cloudera.util.Pair;
 
 
 import me.prettyprint.cassandra.model.BasicColumnFamilyDefinition;
-//import me.prettyprint.cassandra.serializers.BytesArraySerializer;
 import me.prettyprint.cassandra.serializers.StringSerializer;
 import me.prettyprint.cassandra.service.CassandraHostConfigurator;
 import me.prettyprint.cassandra.service.ThriftCfDef;
 import me.prettyprint.hector.api.Cluster;
 import me.prettyprint.hector.api.Keyspace;
-//import me.prettyprint.hector.api.beans.HColumn;
 import me.prettyprint.hector.api.ddl.ColumnType;
 import me.prettyprint.hector.api.ddl.ComparatorType;
 import me.prettyprint.hector.api.exceptions.HInvalidRequestException;
@@ -44,14 +42,11 @@ public class CassandraCqlSink extends EventSink.Base{
     private static final String KS_LOG = (String)prop.getProperty("KS_LOG");
     private static final String CLUSTER_NAME = (String)prop.getProperty("CLUSTER_NAME");
     private static final String CF_ENTRY = (String)prop.getProperty("CF_ENTRY");
-//    private static final String CF_HOURLY = (String)prop.getProperty("CF_HOURLY");
     private static final StringSerializer stringSerializer = StringSerializer.get();
     
-//    private Long startTime = System.nanoTime();
     private Cluster cluster;
     private Keyspace keyspace;
     private Mutator<String> mutator;
-//    private String CFRaw;
     private UUID minute;
     private Timer timer = new Timer();
     
@@ -64,7 +59,6 @@ public class CassandraCqlSink extends EventSink.Base{
 	keyspace = createKeyspace(KS_LOG, cluster);
 	mutator = createMutator(keyspace, stringSerializer);
 
-//	CFRaw = cfRawData;
 	BasicColumnFamilyDefinition cfo = new BasicColumnFamilyDefinition();
 	cfo.setColumnType(ColumnType.STANDARD);
 	cfo.setName(cfRawData);
@@ -73,7 +67,6 @@ public class CassandraCqlSink extends EventSink.Base{
 	
 	
 	//Timer to generate new Time-based UUID for each minute
-//	startTime=System.nanoTime();
     	timer.schedule(new TimerTask() {
             public void run() {
                 minute = uuidGen.generateTimeBasedUUID();
@@ -109,26 +102,15 @@ public class CassandraCqlSink extends EventSink.Base{
 	    	
 	    String rawEntry = new String(event.getBody());	 
 	    
-//	    long elapsedTime = System.nanoTime() - startTime;
-//	    double seconds = (double)elapsedTime / 1000000000.0;
-
-	    
-		// Make the index column
 	    if(minute==null){
 	    	minute = uuidGen.generateTimeBasedUUID();
 	    }
 
 		UUID uuid = uuidGen.generateTimeBasedUUID();
+		
 		mutator.addInsertion(minute.toString(),CF_ENTRY,HFactory.createStringColumn(uuid.toString(),rawEntry));
-		
-		
-//		System.out.println("One Minute? "+ seconds);
-//	    System.out.println(minute.toString());
-
 		mutator.execute();
-
-	    
-	    
+ 
 	    } catch (HInvalidRequestException e) {
 		e.printStackTrace();
 		throw new IOException("Failed to process log entry");

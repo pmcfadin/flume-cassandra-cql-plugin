@@ -1,19 +1,14 @@
-/*
- * 
- * Functionality temporarily borrowed from com.gemini.logprocessing.cassandra
- * 
- */
-
 package com.hobsons.flume.plugin;
 
 import static me.prettyprint.hector.api.factory.HFactory.createKeyspace;
 import static me.prettyprint.hector.api.factory.HFactory.createMutator;
 import static me.prettyprint.hector.api.factory.HFactory.getOrCreateCluster;
 
+import java.io.FileInputStream;
 import java.io.IOException;
-import java.sql.Date;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Properties;
 
 import org.safehaus.uuid.UUID;
 import org.safehaus.uuid.UUIDGenerator;
@@ -28,12 +23,13 @@ import com.cloudera.util.Pair;
 
 
 import me.prettyprint.cassandra.model.BasicColumnFamilyDefinition;
-import me.prettyprint.cassandra.serializers.BytesArraySerializer;
+//import me.prettyprint.cassandra.serializers.BytesArraySerializer;
 import me.prettyprint.cassandra.serializers.StringSerializer;
+import me.prettyprint.cassandra.service.CassandraHostConfigurator;
 import me.prettyprint.cassandra.service.ThriftCfDef;
 import me.prettyprint.hector.api.Cluster;
 import me.prettyprint.hector.api.Keyspace;
-import me.prettyprint.hector.api.beans.HColumn;
+//import me.prettyprint.hector.api.beans.HColumn;
 import me.prettyprint.hector.api.ddl.ColumnType;
 import me.prettyprint.hector.api.ddl.ComparatorType;
 import me.prettyprint.hector.api.exceptions.HInvalidRequestException;
@@ -41,56 +37,34 @@ import me.prettyprint.hector.api.factory.HFactory;
 import me.prettyprint.hector.api.mutation.Mutator;
 
 public class CassandraCqlSink extends EventSink.Base{
-	  
-    private static final String KS_CDRLOG = "F5_Syslog";
-    private static final String CLUSTER_NAME = "Test Cluster";
-    private static final String CF_ENTRY = "Data";
-//    private static final String CF_MSISDN = "MSISDNTimeline";
-    private static final String CF_HOURLY = "HourlyTimeline";
+	
+	private static final Properties prop = getProps();
+    private static final String KS_LOG = (String)prop.getProperty("KS_LOG");
+    private static final String CLUSTER_NAME = (String)prop.getProperty("CLUSTER_NAME");
+    private static final String CF_ENTRY = (String)prop.getProperty("CF_ENTRY");
+    private static final String CF_HOURLY = (String)prop.getProperty("CF_HOURLY");
     private static final StringSerializer stringSerializer = StringSerializer.get();
-    private static final BytesArraySerializer bytesSerializer = BytesArraySerializer.get();
 
 
     private Cluster cluster;
     private Keyspace keyspace;
     private Mutator<String> mutator;
-    //    private Mutator<byte[]> mutator;
-    private String m_CFRawCdr;
+    private String CFRaw;
 
     private static final UUIDGenerator uuidGen = UUIDGenerator.getInstance();
 
-//    private static final String entryColumnFamily = "CDREntry";
-//    private static final String msisdnColumnFamily = "MSISDNTimeLine";
-//    private static final String hourlyColumnFamily = "HourlyTimeLine";
-//    private static final String rawColumnFamily = "RawCDREntry";
-
-    private static final long MILLI_TO_MICRO = 1000; // 1ms = 1000us
-
-    private static final String[] CDRENTRY_NAME = {"type",
-						   "market",
-						   "id",
-						   "timestamp",
-						   "moipaddress",
-						   "mtipaddress",
-						   "msisdn",
-						   "senderdomain",
-						   "recipientdomain"};
-    private static final int[] CDRENTRY_MAP = {0,1,2,4,6,7,8,10,11};
-
     public CassandraCqlSink(String server, String cfRawData) {
-    
-	cluster = getOrCreateCluster(CLUSTER_NAME, server);
-	keyspace = createKeyspace(KS_CDRLOG, cluster);
+    	  
+	cluster = getOrCreateCluster(CLUSTER_NAME, createConfig(server,true));
+	keyspace = createKeyspace(KS_LOG, cluster);
 	mutator = createMutator(keyspace, stringSerializer);
 
-	//Add cdRawData.
-
-	m_CFRawCdr = cfRawData;
+	CFRaw = cfRawData;
 	BasicColumnFamilyDefinition cfo = new BasicColumnFamilyDefinition();
 	cfo.setColumnType(ColumnType.STANDARD);
 	cfo.setName(cfRawData);
 	cfo.setComparatorType(ComparatorType.BYTESTYPE);
-	cfo.setKeyspaceName(KS_CDRLOG);
+	cfo.setKeyspaceName(KS_LOG);
 
 	try {
 	    cluster.addColumnFamily(new ThriftCfDef((cfo)));
@@ -117,58 +91,25 @@ public class CassandraCqlSink extends EventSink.Base{
 
 	if (event.getBody().length > 0) {
 	    try {
-//		long timestamp = System.currentTimeMillis() * MILLI_TO_MICRO;
 
 		// Make the index column
 		UUID uuid = uuidGen.generateTimeBasedUUID();
 
-	    //CDREntry
-	    //
-	    //CDR format is
-	    //
-	    //op,market,tid,mdr_type,msg_ts,imsi,mo_ip,mt_ip,ptn,msg_type,mo_domain,mt_domain
 		String rawEntry = new String(event.getBody());
 
-		
-		String[] rawEntries = rawEntry.split("\\,");
-		for(int i = 0; i < 1/*CDRENTRY_NAME.length*/; i++) {
-		    mutator.addInsertion(uuid.toString(),CF_ENTRY,HFactory.createStringColumn(CDRENTRY_NAME[i],rawEntries[CDRENTRY_MAP[i]]));
-//		    mutator.addInsertion(rowkey, cf, HFactory.createStringColumn(UUID.randomUUID().toString(),UUID.randomUUID().toString()));
+		mutator.addInsertion(uuid.toString(),CF_ENTRY,HFactory.createStringColumn("RAW:",rawEntry));
 
-		}
-
-		//MSISDNTimeLine & HourlyTimeLine
-//		String msisdn = new String(rawEntries[0]); //changed from rawEntries[8]
-//		mutator.addInsertion(msisdn.getBytes(),
-//			      CF_MSISDN,
-//			      createColumn(Long.toString(timestamp).getBytes(),
-//					   uuid.toByteArray()));
- 
-		
 		java.util.Date today = new java.util.Date();
 		
 		mutator.addInsertion(today.toString(),
 			      CF_HOURLY,
 			      HFactory.createStringColumn(today.toString(),
 					   uuid.toString()));
-		
-		
-//		mutator.addInsertion(Long.toString(timestamp).getBytes(),
-//			      CF_HOURLY,
-//			      createColumn(Long.toString(timestamp).getBytes(),
-//					   uuid.toByteArray()));
- 
-		
+	
 		mutator.addInsertion(uuid.toString(),
-			      m_CFRawCdr,
+			      CFRaw,
 			      HFactory.createStringColumn(uuid.toString(),
 					   event.getBody().toString()));
-		
-//		mutator.addInsertion(uuid.toString().getBytes(),
-//			      m_CFRawCdr,
-//			      createColumn(uuid.toByteArray(),
-//					   event.getBody()));
-
 
 		mutator.execute();
 	    } catch (HInvalidRequestException e) {
@@ -193,7 +134,7 @@ public class CassandraCqlSink extends EventSink.Base{
 		
 	    if (args.length < 2) {
           throw new IllegalArgumentException(
-              "usage: CQLCassandraSink(\"host:port\", \"raw_cdr_column_family\")");
+              "usage: cassandraCqlSink(\"host:port\", \"raw_cdr_column_family\")");
         }
 	    
        return new CassandraCqlSink(args[0], args[1]);
@@ -212,11 +153,26 @@ public class CassandraCqlSink extends EventSink.Base{
 		builders.add(new Pair<String, SinkBuilder>("cassandraCqlSink", builder()));
 		return builders;
     }
-
-    private HColumn<byte[], byte[]> createColumn(byte[] name, byte[] value) {
+    
+    private static CassandraHostConfigurator createConfig(String hosts, boolean autoDiscover){
     	
-		return HFactory.createColumn(name, value, bytesSerializer, bytesSerializer);
+    	CassandraHostConfigurator hostConfig = new CassandraHostConfigurator(hosts);
+    	hostConfig.setAutoDiscoverHosts(autoDiscover);
+
+    	return hostConfig;
     }
+    
+    static Properties getProps() {
+		Properties properties = new Properties();
+
+		try {
+			properties.load(new FileInputStream("cassandra.properties"));
+		} catch (IOException e) {
+			e.printStackTrace();
+		}
+
+		return properties;
+	}
 
 }
 

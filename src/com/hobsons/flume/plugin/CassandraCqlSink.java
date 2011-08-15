@@ -62,7 +62,7 @@ public class CassandraCqlSink extends EventSink.Base{
 	BasicColumnFamilyDefinition cfo = new BasicColumnFamilyDefinition();
 	cfo.setColumnType(ColumnType.STANDARD);
 	cfo.setName(cfRawData);
-	cfo.setComparatorType(ComparatorType.BYTESTYPE);
+	cfo.setComparatorType(ComparatorType.ASCIITYPE);
 	cfo.setKeyspaceName(KS_LOG);
 	
 	

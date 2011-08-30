@@ -10,6 +10,7 @@ import java.util.List;
 import java.util.Properties;
 import java.util.UUID;
 
+import com.cloudera.flume.agent.AgentSink;
 import com.cloudera.flume.conf.Context;
 import com.cloudera.flume.conf.SinkFactory.SinkBuilder;
 import com.cloudera.flume.core.Event;
@@ -20,6 +21,8 @@ import com.cloudera.util.Pair;
 import java.text.SimpleDateFormat;
 
 import org.safehaus.uuid.UUIDGenerator;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 //
 import static me.prettyprint.hector.api.factory.HFactory.createKeyspace;
 import static me.prettyprint.hector.api.factory.HFactory.createMutator;
@@ -39,7 +42,9 @@ import me.prettyprint.hector.api.factory.HFactory;
 import me.prettyprint.hector.api.mutation.Mutator;
 
 public class CassandraCqlSink extends EventSink.Base {
-
+	
+	static final Logger LOG = LoggerFactory.getLogger(CassandraCqlSink.class);
+//	static final Logger LOG = LoggerFactory.getLogger(CassandraClient.class);
 	private static final Properties prop = getProps();
 	private static final String KEYSPACE = (String) prop
 			.getProperty("KEYSPACE");
@@ -143,9 +148,13 @@ public class CassandraCqlSink extends EventSink.Base {
 	    String[] product = entry[PRODUCTCODE].split("-");
 	    	    
 //TODO	//added for entry that is too short and for images.
-	    if(entry.length-1<13||entry[URL].contains(".png")||entry[URL].contains(".jpg")||entry[URL].contains(".gif"))
+	    //ADD LOGGING TO OUTPUT THIS EVEN TO SYSLOG
+	    if(entry.length-1<13){
+	    	
+	    	LOG.info("Oversized packet detected (>1024 Bytes)");
 	    	return;
-	    
+	    }
+	    	
 	    StringBuffer cfName = (new StringBuffer(product[1])).append("_web_perf_data");
 	    StringBuffer rawKey = new StringBuffer(dmy[2]);
 	    	rawKey.append(dmy[0]);
